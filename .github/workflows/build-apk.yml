@@ -41,7 +41,18 @@ jobs:
 
       - name: Test logika inti + build APK debug
         working-directory: ${{ env.PROJECT_DIR }}
-        run: ./gradlew :core:test :app:assembleDebug --stacktrace
+        run: |
+          set -o pipefail
+          ./gradlew :core:test :app:assembleDebug --console=plain 2>&1 | tee "$GITHUB_WORKSPACE/build.log"
+
+      - name: RINGKASAN ERROR (salin isi langkah ini)
+        if: failure()
+        run: |
+          echo "=== Baris error compile (diawali 'e:' atau 'error:') ==="
+          grep -E "^e: |error:|\[ksp\]" build.log | sed 's#file://[^ ]*/putri/##' | sort -u | head -80
+          echo
+          echo "=== Penyebab dari Gradle ==="
+          grep -A12 "What went wrong" build.log | head -50
 
       - name: Unggah APK
         uses: actions/upload-artifact@v4
@@ -54,5 +65,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: build-reports
-          path: ${{ env.PROJECT_DIR }}/**/build/reports/**
+          path: |
+            build.log
+            ${{ env.PROJECT_DIR }}/**/build/reports/**
           if-no-files-found: ignore
