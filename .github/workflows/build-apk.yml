@@ -15,31 +15,44 @@ jobs:
           distribution: temurin
           java-version: 17
 
-      # Runner GitHub sudah membawa Android SDK; cukup terima lisensi & pastikan platform 34 ada.
+      # Cari folder proyek (tempat gradlew berada), apa pun struktur unggahannya.
+      - name: Cari folder proyek
+        run: |
+          G=$(find . -name gradlew -type f -not -path './.git/*' | head -1)
+          if [ -z "$G" ]; then
+            echo "::error::File gradlew tidak ditemukan. Isi repository:"
+            find . -maxdepth 3 -not -path './.git/*' | head -60
+            exit 1
+          fi
+          DIR=$(dirname "$G")
+          echo "Folder proyek: $DIR"
+          ls "$DIR"
+          echo "PROJECT_DIR=$DIR" >> "$GITHUB_ENV"
+
       - name: Siapkan Android SDK
         run: |
           SDKM=$(find "$ANDROID_HOME/cmdline-tools" -name sdkmanager -type f | head -1)
-          echo "sdkmanager: $SDKM"
           yes | "$SDKM" --licenses > /dev/null || true
           "$SDKM" "platforms;android-34" "build-tools;34.0.0" || true
 
       - name: Izinkan gradlew
+        working-directory: ${{ env.PROJECT_DIR }}
         run: chmod +x gradlew
 
       - name: Test logika inti + build APK debug
+        working-directory: ${{ env.PROJECT_DIR }}
         run: ./gradlew :core:test :app:assembleDebug --stacktrace
 
       - name: Unggah APK
         uses: actions/upload-artifact@v4
         with:
           name: passgo-debug-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
+          path: ${{ env.PROJECT_DIR }}/app/build/outputs/apk/debug/app-debug.apk
 
-      - name: Unggah log bila gagal
+      - name: Unggah laporan bila gagal
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: build-reports
-          path: |
-            **/build/reports/**
+          path: ${{ env.PROJECT_DIR }}/**/build/reports/**
           if-no-files-found: ignore
