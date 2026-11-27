@@ -15,7 +15,13 @@ jobs:
           distribution: temurin
           java-version: 17
 
-      - uses: android-actions/setup-android@v3
+      # Runner GitHub sudah membawa Android SDK; cukup terima lisensi & pastikan platform 34 ada.
+      - name: Siapkan Android SDK
+        run: |
+          SDKM=$(find "$ANDROID_HOME/cmdline-tools" -name sdkmanager -type f | head -1)
+          echo "sdkmanager: $SDKM"
+          yes | "$SDKM" --licenses > /dev/null || true
+          "$SDKM" "platforms;android-34" "build-tools;34.0.0" || true
 
       - name: Izinkan gradlew
         run: chmod +x gradlew
@@ -36,5 +42,4 @@ jobs:
           name: build-reports
           path: |
             **/build/reports/**
-            **/build/outputs/logs/**
           if-no-files-found: ignore
